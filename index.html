@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power Tennis - Losowanie Drużyn</title>
+    
+    <!-- Biblioteka do generowania obrazów ze strony -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --brand-gradient: linear-gradient(135deg, #FFC800 0%, #FF4500 100%);
+            --tennis-ball-main: #DFFF4F;  
+            --tennis-ball-dark: #cadd2b;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+            background-color: #fdf6f2;
+
+            /* Tło z rakietami */
+            /* background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cpath d='M0 0h120v120H0z' fill='none'/%3E%3Cg opacity='0.15' transform='translate(10 10)'%3E%3Cpath d='M25 25 L45 45' stroke='%23333' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='20' r='12' stroke='%23333' stroke-width='3' fill='none'/%3E%3Cpath d='M12 20 h16 M20 12 v16' stroke='%23333' stroke-width='1'/%3E%3Cpath d='M75 25 L55 45' stroke='%23FF4500' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='80' cy='20' r='12' stroke='%23FF4500' stroke-width='3' fill='none'/%3E%3Cpath d='M72 20 h16 M80 12 v16' stroke='%23FF4500' stroke-width='1'/%3E%3Ccircle cx='50' cy='70' r='6' fill='%23DFFF4F' stroke='%23888' stroke-width='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); */
+            background-image: url("./unnamed.jpg");
+            
+            /* background-size: 150px 120px; */
+            background-attachment: fixed;
+            background-position: center;
+        }
+
+        header {
+            background: var(--brand-gradient);
+            color: white;
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1600px; /* Zwiększona szerokość dla układu dwukolumnowego */
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        /* Setup Screen */
+        #setup-screen {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-top: 5px solid #FF4500;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+            box-sizing: border-box; 
+        }
+        
+        textarea:focus { border-color: #FF4500; }
+
+        button {
+            background-color: var(--tennis-ball-main);
+            color: #222;
+            border: none;
+            padding: 15px 35px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+        }
+
+        button:hover { transform: translateY(-2px); filter: brightness(1.05); }
+        button:disabled { background-color: #ccc; cursor: not-allowed; transform: none; }
+
+        #download-btn {
+            background-color: #333;
+            color: white;
+            margin-top: 20px;
+            font-size: 16px;
+            padding: 12px 25px;
+            display: none;
+        }
+        #download-btn:hover { background-color: #555; }
+
+        /* --- NOWY UKŁAD GRY (FLEXBOX) --- */
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        /* Kontener dzielący na Lewo/Prawo */
+        .game-layout {
+            display: flex;
+            flex-direction: row; /* Układ poziomy */
+            justify-content: center;
+            align-items: flex-start; /* Wyrównanie do góry */
+            gap: 40px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        /* Lewa kolumna: Koło + Przycisk */
+        .left-column {
+            flex: 0 0 500px; /* Stała szerokość dla koła */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: sticky; /* Opcjonalnie: koło "przyklejone" podczas przewijania wyników */
+            top: 20px;
+        }
+
+        /* Prawa kolumna: Wyniki */
+        .right-column {
+            flex: 1; /* Zajmuje resztę miejsca */
+            width: 100%;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            margin-bottom: 30px;
+            background-color: var(--tennis-ball-main);
+            box-shadow: 
+                inset -20px -20px 60px rgba(0,0,0,0.2), 
+                inset 20px 20px 60px rgba(255,255,255,0.4), 
+                0 15px 35px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 45px solid #333; 
+            z-index: 10;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));
+        }
+
+        .current-action {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #444;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border-bottom: 4px solid #FF4500;
+            box-sizing: border-box;
+        }
+        
+        .highlight-name {
+            color: #FF4500;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-style: italic;
+        }
+
+        #results-area {
+            width: 100%;
+            background: #ffffff; 
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            border: 1px solid #eee;
+            min-height: 500px; /* Żeby prawa kolumna nie była pusta na początku */
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .teams-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* Nieco węższe karty żeby więcej weszło */
+            gap: 20px;
+        }
+
+        .team-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 1px solid #eee;
+            transition: transform 0.2s;
+        }
+        
+        .team-card:hover { transform: translateY(-5px); }
+
+        .team-header {
+            background: var(--brand-gradient);
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        
+        .team-members {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+        }
+
+        .member { display: flex; flex-direction: column; align-items: center; }
+        .member span { font-weight: 600; font-size: 0.85em; margin-top: 5px; text-align: center; }
+        
+        .avatar-placeholder {
+            width: 40px; height: 40px;
+            font-size: 20px;
+            background: #f0f0f0; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            border: 2px solid var(--tennis-ball-main); 
+        }
+
+        .winner-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .winner-content {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            animation: popIn 0.3s ease-out;
+            border-bottom: 8px solid #FF4500;
+            width: 90%; max-width: 400px;
+        }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .winner-emoji { font-size: 80px; display: block; margin-bottom: 10px; }
+
+        /* RESPONSYWNOŚĆ: Na tabletach i telefonach wróć do układu pionowego */
+        @media (max-width: 1100px) {
+            .game-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+            .left-column {
+                flex: none;
+                width: 100%;
+                position: static;
+                margin-bottom: 40px;
+            }
+            .right-column {
+                flex: none;
+                width: 100%;
+            }
+            #results-area {
+                min-height: auto;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .wheel-container { width: 300px; height: 300px; }
+            .container { width: 100%; }
+            #results-area { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Power Tennis Academy - Losowanie</h1>
+</header>
+
+<div class="container">
+    
+    <!-- EKRAN 1: Setup -->
+    <div id="setup-screen">
+        <h2 style="color: #FF4500; text-transform: uppercase;">Konfiguracja Turnieju</h2>
+        <p>Wklej listę zawodników (każdy w nowej linii):</p>
+        <textarea id="participants-input" placeholder="Iga Świątek&#10;Hubert Hurkacz&#10;..."></textarea>
+        <button onclick="startGame()">ROZPOCZNIJ TURNIEJ</button>
+    </div>
+
+    <!-- EKRAN 2: Gra -->
+    <div id="game-screen">
+        
+        <div class="current-action" id="status-text">Losujemy...</div>
+
+        <!-- Kontener układu dwukolumnowego -->
+        <div class="game-layout">
+            
+            <!-- LEWA STRONA: KOŁO -->
+            <div class="left-column">
+                <div class="wheel-container">
+                    <div class="pointer"></div>
+                    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+                </div>
+                <button id="spin-btn" onclick="spinWheel()">LOSUJ!</button>
+            </div>
+
+            <!-- PRAWA STRONA: WYNIKI -->
+            <div class="right-column">
+                <div id="results-area">
+                    <h2 style="color:#FF4500; text-transform: uppercase; margin-top:0;">Wylosowane Pary</h2>
+                    <div class="teams-list" id="teams-container">
+                        <p style="color: #999; font-style: italic;">Tutaj pojawią się wylosowane pary...</p>
+                    </div>
+                    
+                    <button id="download-btn" onclick="downloadResults()">Pobierz listę</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal -->
+<div class="winner-modal" id="winner-modal">
+    <div class="winner-content">
+        <span class="winner-emoji">🎾</span>
+        <h2 style="color: #555; margin-bottom: 5px;">Zwycięzca:</h2>
+        <h3 id="winner-name" style="font-size: 2.5em; margin: 10px 0; color: #FF4500; font-style: italic;">Imię</h3>
+        <button onclick="closeModal()" style="width: 100%;">ZATWIERDŹ</button>
+    </div>
+</div>
+
+<script>
+    let participants = [], currentRotation = 0, teams = [], currentTeam = [], isSpinning = false, winnerIndex = -1;
+    const colors = ['#DFFF4F', '#cadd2b']; 
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spin-btn');
+    const statusText = document.getElementById('status-text');
+    const downloadBtn = document.getElementById('download-btn');
+
+    function startGame() {
+        const input = document.getElementById('participants-input').value;
+        participants = input.split('\n').map(p => p.trim()).filter(p => p !== '');
+        
+        if (participants.length < 2) { 
+            alert("Podaj min. 2 osoby!"); 
+            return; 
+        }
+        
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'flex';
+        drawWheel();
+        updateStatus();
+    }
+
+    function drawWheel() {
+        if (participants.length === 0) return;
+        const numSegments = participants.length;
+        const arcSize = (2 * Math.PI) / numSegments;
+        const radius = canvas.width / 2;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const startAngleOffset = -Math.PI / 2;
+
+        for (let i = 0; i < numSegments; i++) {
+            const angle = startAngleOffset + (i * arcSize);
+            const color = colors[i % colors.length];
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.moveTo(radius, radius);
+            ctx.arc(radius, radius, radius, angle, angle + arcSize);
+            ctx.lineTo(radius, radius);
+            ctx.fill();
+            
+            ctx.lineWidth = 6; ctx.strokeStyle = "#ffffff"; ctx.stroke();
+            ctx.save();
+            ctx.translate(radius, radius);
+            ctx.rotate(angle + arcSize / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#2d3436";
+            
+            ctx.font = "bold 16px 'Segoe UI', Arial";
+            ctx.fillText(participants[i], radius - 30, 6);
+            
+            ctx.restore();
+        }
+    }
+
+    function spinWheel() {
+        if (isSpinning || participants.length === 0) return;
+        isSpinning = true; spinBtn.disabled = true;
+        winnerIndex = Math.floor(Math.random() * participants.length);
+        const segmentAngle = 360 / participants.length;
+        const targetAngle = (winnerIndex * segmentAngle) + (segmentAngle / 2);
+        const jitter = (Math.random() - 0.5) * (segmentAngle * 0.8);
+        const finalAngle = targetAngle + jitter;
+        const currentMod = currentRotation % 360;
+        let angleNeeded = finalAngle - currentMod;
+        if (angleNeeded < 0) angleNeeded += 360;
+        currentRotation += (360 * 5) + angleNeeded;
+        canvas.style.transition = 'transform 4s cubic-bezier(0.2, 0.8, 0.1, 1)';
+        canvas.style.transform = `rotate(-${currentRotation}deg)`;
+        setTimeout(() => showWinnerModal(participants[winnerIndex]), 4000);
+    }
+
+    function showWinnerModal(name) {
+        document.getElementById('winner-name').textContent = name;
+        document.getElementById('winner-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('winner-modal').style.display = 'none';
+        handlePairLogic(participants[winnerIndex]);
+        participants.splice(winnerIndex, 1);
+        canvas.style.transition = 'none';
+        canvas.style.transform = `rotate(0deg)`;
+        currentRotation = 0;
+        drawWheel();
+        setTimeout(() => {
+            isSpinning = false;
+            if (participants.length === 0) {
+                statusText.innerHTML = "Turniej rozlosowany!";
+                spinBtn.disabled = true; spinBtn.textContent = "KONIEC"; spinBtn.style.backgroundColor = "#ccc";
+                if (currentTeam.length > 0) finalizeTeam();
+            } else {
+                spinBtn.disabled = false; updateStatus();
+            }
+        }, 100);
+    }
+
+    function handlePairLogic(person) {
+        currentTeam.push(person);
+        if (currentTeam.length === 2) finalizeTeam();
+    }
+
+    function finalizeTeam() {
+        teams.push([...currentTeam]);
+        renderTeams();
+        currentTeam = [];
+        
+        if (teams.length > 0) {
+            downloadBtn.style.display = 'inline-block';
+        }
+    }
+
+    function updateStatus() {
+        const tNum = teams.length + 1;
+        if (currentTeam.length === 0) statusText.innerHTML = `Losujemy osobę 1 do <span style="color:#2980b9">Pary ${tNum}</span>`;
+        else statusText.innerHTML = `Losowanie partnera/ki <span class="highlight-name">${currentTeam[0]}</span> do <span style="color:#2980b9">Pary ${tNum}</span>`;
+    }
+
+    function renderTeams() {
+        const c = document.getElementById('teams-container'); c.innerHTML = '';
+        teams.forEach((team, i) => {
+            let membersHtml = '';
+            team.forEach(m => membersHtml += `<div class="member"><div class="avatar-placeholder">🎾</div><span>${m}</span></div>`);
+            c.innerHTML += `<div class="team-card"><div class="team-header"><h3>Para nr ${i+1}</h3></div><div class="team-members">${membersHtml}</div></div>`;
+        });
+    }
+
+    function downloadResults() {
+        const element = document.getElementById('results-area');
+        downloadBtn.style.display = 'none';
+
+        html2canvas(element, {
+            scale: 2, 
+            backgroundColor: "#ffffff" 
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'Pary-Turniejowe-PowerTennis.png';
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            downloadBtn.style.display = 'inline-block';
+        }).catch(err => {
+            console.error(err);
+            alert("Wystąpił błąd podczas generowania obrazu.");
+            downloadBtn.style.display = 'inline-block';
+        });
+    }
+</script>
+
+</body>
+</html>
